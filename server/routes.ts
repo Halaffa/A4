@@ -11,6 +11,8 @@ import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
 
+const LOGIN_TIMEOUT = 60 * 60 * 24;
+
 class Routes {
   @Router.get("/session")
   async getSessionUser(session: WebSessionDoc) {
@@ -60,8 +62,8 @@ class Routes {
   }
 
   @Router.post("/labels")
-  async createLabel(name: string) {
-    return await Label.create(name);
+  async createLabel(name: string, target: ObjectId) {
+    return await Label.create(name, target);
   }
 
   @Router.put("/labels")
@@ -155,13 +157,6 @@ class Routes {
     return await User.delete(user);
   }
 
-  @Router.post("/login")
-  async logIn(session: WebSessionDoc, username: string, password: string) {
-    const u = await User.authenticate(username, password);
-    WebSession.start(session, u._id);
-    return { msg: "Logged in!" };
-  }
-
   @Router.post("/logout")
   async logOut(session: WebSessionDoc) {
     WebSession.end(session);
@@ -178,13 +173,6 @@ class Routes {
       posts = await Post.getPosts({});
     }
     return Responses.posts(posts);
-  }
-
-  @Router.post("/posts")
-  async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
-    const user = WebSession.getUser(session);
-    const created = await Post.create(user, content, options);
-    return { msg: created.msg, post: await Responses.post(created.post) };
   }
 
   @Router.patch("/posts/:_id")
@@ -246,6 +234,64 @@ class Routes {
     const user = WebSession.getUser(session);
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
+  }
+
+  // TODO: Functionality for sync routes
+  // TODO: Additional label functions or store usernames in labels?
+
+  @Router.post("/mark")
+  async mark(session: WebSessionDoc, to: ObjectId, name: string) {
+    const from = WebSession.getUser(session);
+    // const labelName = await Label.generateLabel(name, from); ?
+    const label = await Label.create(name, to);
+    // If from labeled to with label name already:
+    //    Change some state to signify mutual marking
+    return label;
+  }
+
+  @Router.delete("/mark")
+  async unmark(session: WebSessionDoc, to: ObjectId, name: string) {
+    const from = WebSession.getUser(session);
+    // const labelName = await Label.generateLabel(name, from); ?
+    const label = await Label.getLabels({ name });
+    // If from labeled to with label name already:
+    //    Change some state to signify no more mutual marking
+    // return Label.delete(label._id); Need a "delete by name" for label
+    return;
+  }
+
+  @Router.post("/tier")
+  async tier(session: WebSessionDoc, otherUser: ObjectId, tier: number) {
+    const user = WebSession.getUser(session);
+    // const labelName = await Label.tierLabel(name, tier); ?
+    const label = await Label.create("user_and_tier", otherUser);
+    return label;
+  }
+
+  @Router.delete("/tier")
+  async untier(session: WebSessionDoc, otherUser: ObjectId, tier: number) {
+    const user = WebSession.getUser(session);
+    // const labelName = await Label.tierLabel(name, tier); ?
+    // return Label.delete(labelName); Need a "delete by name" for label
+  }
+
+  @Router.post("/login")
+  async logIn(session: WebSessionDoc, username: string, password: string) {
+    const u = await User.authenticate(username, password);
+    const expireTimer = await Expiry.create(u._id, LOGIN_TIMEOUT);
+    WebSession.start(session, u._id);
+    return { msg: "Logged in!" };
+  }
+
+  @Router.post("/posts")
+  async createPost(session: WebSessionDoc, content: string, options?: PostOptions, tier?: number) {
+    if (!tier) {
+      const user = WebSession.getUser(session);
+      const created = await Post.create(user, content, options);
+      return { msg: created.msg, post: await Responses.post(created.post) };
+    }
+    // So here we need to consider who has access based on what tier this post is labeled as.
+    // Only users with tiers equal to or higher than the given tier by author are granted permission
   }
 }
 

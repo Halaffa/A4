@@ -5,13 +5,14 @@ import { NotAllowedError } from "./errors";
 
 export interface LabelDoc extends BaseDoc {
   name: string;
+  target: ObjectId;
 }
 
 export default class LabelConcept {
   public readonly postLabels = new DocCollection<LabelDoc>("post_labels");
 
-  async create(name: string) {
-    const _id = await this.postLabels.createOne({ name });
+  async create(name: string, target: ObjectId) {
+    const _id = await this.postLabels.createOne({ name, target });
     return { msg: "Label successfully created!", label: await this.postLabels.readOne({ _id }) };
   }
 
