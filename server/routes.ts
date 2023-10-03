@@ -2,8 +2,11 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, User, WebSession } from "./app";
+import { Expiry, Friend, Label, Permission, Post, Status, User, WebSession } from "./app";
+import { ExpiryDoc } from "./concepts/expiry";
+import { LabelDoc } from "./concepts/label";
 import { PostDoc, PostOptions } from "./concepts/post";
+import { StatusDoc } from "./concepts/status";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
@@ -13,6 +16,31 @@ class Routes {
   async getSessionUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
     return await User.getUserById(user);
+  }
+
+  @Router.get("/labels")
+  async getAllLabels() {
+    return await Label.getLabels({});
+  }
+
+  @Router.get("/expire")
+  async getExpireTimeAny() {
+    return await Expiry.getTimeLeft({});
+  }
+
+  @Router.get("/expire")
+  async getExpireTime(_id: ObjectId) {
+    return await Expiry.getTimeLeft({ _id });
+  }
+
+  @Router.get("/status")
+  async getStatus() {
+    return await Status.getStatus({});
+  }
+
+  @Router.get("/permission")
+  async getPerms() {
+    return await Permission.getPerms({});
   }
 
   @Router.get("/users")
@@ -31,10 +59,93 @@ class Routes {
     return await User.create(username, password);
   }
 
+  @Router.post("/labels")
+  async createLabel(name: string) {
+    return await Label.create(name);
+  }
+
+  @Router.put("/labels")
+  async changeLabel(_id: ObjectId, update: Partial<LabelDoc>) {
+    return await Label.update(_id, update);
+  }
+
+  @Router.delete("/labels")
+  async deleteLabel(_id: ObjectId) {
+    return await Label.delete(_id);
+  }
+
   @Router.patch("/users")
   async updateUser(session: WebSessionDoc, update: Partial<UserDoc>) {
     const user = WebSession.getUser(session);
     return await User.update(user, update);
+  }
+
+  @Router.put("/expire/time")
+  async changeTime(_id: ObjectId, update: Partial<ExpiryDoc>) {
+    return await Expiry.refresh(_id, update);
+  }
+
+  @Router.post("/expire")
+  async makeExpire(resource: ObjectId, time: number) {
+    return await Expiry.create(resource, time);
+  }
+
+  @Router.get("/expire/resource")
+  async didExpire(_id: ObjectId) {
+    return await Expiry.expire(_id);
+  }
+
+  @Router.post("/permission")
+  async grantPermission(user: ObjectId, resource: ObjectId) {
+    return await Permission.grantPermission(user, resource);
+  }
+
+  @Router.get("/permission/user")
+  async getUserPerms(user: ObjectId) {
+    return await Permission.getByUser(user);
+  }
+
+  @Router.get("/permission/resource")
+  async getAllowedUsers(resource: ObjectId) {
+    return await Permission.getByResource(resource);
+  }
+
+  @Router.get("/permission/user/resource")
+  async getSpecificPerm(user: ObjectId, resource: ObjectId) {
+    return await Permission.getSpecific(user, resource);
+  }
+
+  @Router.delete("/permission")
+  async deletePerm(_id: ObjectId) {
+    return await Permission.removePermission(_id);
+  }
+
+  @Router.delete("/permission/user/resource")
+  async revokePerm(user: ObjectId, resource: ObjectId) {
+    return await Permission.revokeSpecific(user, resource);
+  }
+
+  @Router.post("/status")
+  async initStatus(user: ObjectId) {
+    return await Status.create(user);
+  }
+
+  @Router.get("/user/status")
+  async userStatus(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Status.getByAuthor(user);
+  }
+
+  @Router.put("/user/status")
+  async changeStatus(session: WebSessionDoc, update: Partial<StatusDoc>) {
+    const user = WebSession.getUser(session);
+    return await Status.update(user, update);
+  }
+
+  @Router.delete("/user/status")
+  async deleteStatus(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Status.delete(user);
   }
 
   @Router.delete("/users")
