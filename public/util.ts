@@ -39,25 +39,25 @@ const operations: operation[] = [
     name: "Change Label",
     endpoint: "/api/labels",
     method: "PATCH",
-    fields: { id: "input", name: "input" },
+    fields: { _id: "input", name: "input" },
   },
   {
     name: "Delete Label",
     endpoint: "/api/labels",
     method: "DELETE",
-    fields: { id: "input" },
+    fields: { _id: "input" },
   },
   {
     name: "Get Specific Expire Time",
-    endpoint: "/api/expire/:id",
+    endpoint: "/api/expire/:_id",
     method: "GET",
-    fields: { id: "input" },
+    fields: { _id: "input" },
   },
   {
     name: "Change Expire Time",
     endpoint: "/api/expire",
     method: "PATCH",
-    fields: { id: "input", time: "input" },
+    fields: { _id: "input", time: "input" },
   },
   {
     name: "Make Expire",
@@ -66,10 +66,10 @@ const operations: operation[] = [
     fields: { resource: "input", time: "input" },
   },
   {
-    name: "Did Expire?",
-    endpoint: "/api/expire/resource",
+    name: "Did Expire",
+    endpoint: "/api/expired",
     method: "GET",
-    fields: { id: "input" },
+    fields: { _id: "input" },
   },
   {
     name: "Get Status",
@@ -79,7 +79,7 @@ const operations: operation[] = [
   },
   {
     name: "Get User Status",
-    endpoint: "/api/user/status",
+    endpoint: "/api/user/status/",
     method: "GET",
     fields: {},
   },
@@ -91,13 +91,13 @@ const operations: operation[] = [
   },
   {
     name: "Change User Status",
-    endpoint: "/api/user/status",
+    endpoint: "/api/user/status/",
     method: "PATCH",
     fields: { emoji: "input" },
   },
   {
     name: "Delete User Status",
-    endpoint: "/api/user/status",
+    endpoint: "/api/user/status/",
     method: "DELETE",
     fields: {},
   },
@@ -135,7 +135,7 @@ const operations: operation[] = [
     name: "Delete Permissions",
     endpoint: "/api/permission",
     method: "DELETE",
-    fields: { id: "input" },
+    fields: { _id: "input" },
   },
   {
     name: "Delete Permissions (with user and resource)",

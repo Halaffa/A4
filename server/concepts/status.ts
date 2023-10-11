@@ -15,6 +15,10 @@ export default class StatusConcept {
     if (!user) {
       throw new BadValuesError("user cannot be empty");
     }
+    const exists = await this.getByAuthor(user);
+    if (exists) {
+      throw new NotAllowedError("User already has a status");
+    }
     const _id = await this.status.createOne({ user, emoji: "none" });
     return { msg: "Status field successfully created!", status: await this.status.readOne({ _id }) };
   }
@@ -27,17 +31,24 @@ export default class StatusConcept {
   }
 
   async getByAuthor(user: ObjectId) {
-    return await this.getStatus({ user });
+    const statuses = await this.status.readMany({ user });
+    if (statuses.length === 0) {
+      throw new BadValuesError(`${user} doesn't have a status!`);
+    }
+    return statuses[0];
   }
 
   async update(_id: ObjectId, emoji: string) {
     const update = { emoji };
     this.sanitizeUpdate(update);
-    await this.status.updateOne({ _id }, update);
+    await this.getByAuthor(_id);
+
+    await this.status.updateOne({ user: _id }, update);
     return { msg: "Status successfully updated!" };
   }
 
   async delete(_id: ObjectId) {
+    await this.getByAuthor(_id);
     await this.update(_id, "none");
     return { msg: "Status deleted successfully!" };
   }

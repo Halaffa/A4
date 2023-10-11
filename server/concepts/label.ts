@@ -32,16 +32,19 @@ export default class LabelConcept {
   async update(_id: ObjectId, name: string) {
     const update = { name };
     this.sanitizeUpdate(update);
+    await this.getLabels({ _id });
     await this.Labels.updateOne({ _id }, update);
     return { msg: "Label successfully updated!" };
   }
 
   async delete(_id: ObjectId) {
+    await this.getLabels({ _id });
     await this.Labels.deleteOne({ _id });
     return { msg: "Labels deleted successfully!" };
   }
 
   async deleteByName(name: string) {
+    await this.getLabels({ name });
     await this.Labels.deleteOne({ name });
     return { msg: "Labels deleted successfully!" };
   }

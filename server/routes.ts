@@ -23,7 +23,7 @@ class Routes {
     return await Label.getLabels({});
   }
 
-  @Router.get("/expire/:id")
+  @Router.get("/expire/:_id")
   async getExpireTime(_id: ObjectId) {
     return await Expiry.getTimeLeft(_id);
   }
@@ -60,10 +60,10 @@ class Routes {
   }
 
   @Router.patch("/labels")
-  async changeLabel(_id: ObjectId, update: string) {
-    return await Label.update(_id, update);
+  async changeLabel(_id: ObjectId, name: string) {
+    return await Label.update(_id, name);
   }
-  // Change and delete label
+
   @Router.delete("/labels")
   async deleteLabel(_id: ObjectId) {
     return await Label.delete(_id);
@@ -77,6 +77,7 @@ class Routes {
 
   @Router.patch("/expire")
   async changeTime(_id: ObjectId, time: number) {
+    await Expiry.getTimeLeft(_id);
     return await Expiry.refresh(_id, time);
   }
 
@@ -84,9 +85,8 @@ class Routes {
   async makeExpire(resource: ObjectId, time: number) {
     return await Expiry.create(resource, time);
   }
-  // Getting expire time seems weird, getting expire is wrong form,
-  // and refreshing expire gives error
-  @Router.get("/expire/resource")
+  // Did expire is still wrong, but now it's just errors
+  @Router.get("/expired")
   async didExpire(_id: ObjectId) {
     return await Expiry.expire(_id);
   }
@@ -111,7 +111,6 @@ class Routes {
     return await Permission.getSpecific(user, resource);
   }
 
-  // This is only not working permissions
   @Router.delete("/permission")
   async deletePerm(_id: ObjectId) {
     return await Permission.removePermission(_id);
@@ -127,20 +126,21 @@ class Routes {
     return await Status.create(user);
   }
 
-  @Router.get("/user/status")
+  @Router.get("/user/status/")
   async userStatus(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
     return await Status.getByAuthor(user);
   }
 
-  @Router.patch("/user/status")
-  async changeStatus(session: WebSessionDoc, symbol: string) {
+  @Router.patch("/user/status/")
+  async changeStatus(session: WebSessionDoc, emoji: string) {
     const user = WebSession.getUser(session);
-    return await Status.update(user, symbol);
+    return await Status.update(user, emoji);
   }
-  // Changing and getting user status
+  // Changing and getting user status doesn't work
+  // Deleting user status can't be tested
 
-  @Router.delete("/user/status")
+  @Router.delete("/user/status/")
   async deleteStatus(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
     return await Status.delete(user);
@@ -256,7 +256,6 @@ class Routes {
 
   // This was not a functionality I realized I needed originally,
   // keep this one in mind for the writeup.
-  // Anddddd.... it's bugged
   @Router.get("/tier")
   async getTiers(session: WebSessionDoc) {
     const from = WebSession.getUser(session);
