@@ -121,10 +121,6 @@ class Routes {
     return await Permission.revokeSpecific(user, resource);
   }
 
-  // @Router.post("/status")
-  // async initStatus(user: ObjectId) {
-  //   return await Status.create(user);
-  // }
   @Router.post("/status")
   async initStatus(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
@@ -142,8 +138,6 @@ class Routes {
     const user = WebSession.getUser(session);
     return await Status.update(user, emoji);
   }
-  // Changing, getting, and deleting user status doesn't work
-  // Fir some reason, it doesn't recognize that the user is in the database?
 
   @Router.delete("/user/status/")
   async deleteStatus(session: WebSessionDoc) {

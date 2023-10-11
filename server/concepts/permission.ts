@@ -1,7 +1,7 @@
 import { Filter, ObjectId } from "mongodb";
 
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { BadValuesError, NotAllowedError } from "./errors";
+import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface PermissionDoc extends BaseDoc {
   user: ObjectId;
@@ -15,7 +15,11 @@ export default class PermissionConcept {
     if (!user || !resource) {
       throw new BadValuesError("user and resource cannot be empty");
     }
-    if (await this.getSpecific(user, resource)) {
+    if (
+      await this.getSpecific(user, resource).catch(() => {
+        return false;
+      })
+    ) {
       throw new PermissionAlreadyGrantedError(user, resource);
     }
     const _id = await this.perms.createOne({ user, resource });
@@ -38,15 +42,27 @@ export default class PermissionConcept {
   }
 
   async getSpecific(user: ObjectId, resource: ObjectId) {
-    return await this.perms.readOne({ user, resource });
+    const perm = await this.perms.readOne({ user, resource });
+    if (!perm) {
+      throw new NotFoundError(`${user} does not have a pass for ${resource}`);
+    }
+    return perm;
   }
 
   async removePermission(_id: ObjectId) {
+    const perm = await this.perms.readOne({ _id });
+    if (!perm) {
+      throw new NotFoundError(`Permission with id ${_id} doesn't exist.`);
+    }
     await this.perms.deleteOne({ _id });
     return { msg: "Permission revoked!" };
   }
 
   async revokeSpecific(user: ObjectId, resource: ObjectId) {
+    const perm = await this.perms.readOne({ user, resource });
+    if (!perm) {
+      throw new NotFoundError(`${user} did not have a pass for ${resource}`);
+    }
     await this.perms.deleteOne({ user, resource });
     return { msg: "Permission revoked!" };
   }
