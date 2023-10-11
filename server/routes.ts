@@ -85,7 +85,7 @@ class Routes {
   async makeExpire(resource: ObjectId, time: number) {
     return await Expiry.create(resource, time);
   }
-  // Did expire is still wrong, but now it's just errors
+
   @Router.get("/expired")
   async didExpire(_id: ObjectId) {
     return await Expiry.expire(_id);
@@ -121,8 +121,13 @@ class Routes {
     return await Permission.revokeSpecific(user, resource);
   }
 
+  // @Router.post("/status")
+  // async initStatus(user: ObjectId) {
+  //   return await Status.create(user);
+  // }
   @Router.post("/status")
-  async initStatus(user: ObjectId) {
+  async initStatus(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
     return await Status.create(user);
   }
 
@@ -137,8 +142,8 @@ class Routes {
     const user = WebSession.getUser(session);
     return await Status.update(user, emoji);
   }
-  // Changing and getting user status doesn't work
-  // Deleting user status can't be tested
+  // Changing, getting, and deleting user status doesn't work
+  // Fir some reason, it doesn't recognize that the user is in the database?
 
   @Router.delete("/user/status/")
   async deleteStatus(session: WebSessionDoc) {

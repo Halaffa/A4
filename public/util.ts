@@ -87,7 +87,7 @@ const operations: operation[] = [
     name: "Initialize Status (in frontend, this will only be called on account creation)",
     endpoint: "/api/status",
     method: "POST",
-    fields: { user: "input" },
+    fields: {},
   },
   {
     name: "Change User Status",
@@ -96,7 +96,7 @@ const operations: operation[] = [
     fields: { emoji: "input" },
   },
   {
-    name: "Delete User Status",
+    name: "Delete User Status (sets emoji to none)",
     endpoint: "/api/user/status/",
     method: "DELETE",
     fields: {},

@@ -61,9 +61,15 @@ export default class LabelConcept {
 }
 
 export function tierLabel(tier: number, from: ObjectId, to: ObjectId) {
+  if (!tier || !from || !to) {
+    throw new BadValuesError("Must know tier, who it's from, and who it's for.");
+  }
   return to.toString() + "_" + tier.toString() + "_" + from.toString();
 }
 
 export function markLabel(name: string, from: ObjectId, to: ObjectId) {
+  if (!name || !from || !to) {
+    throw new BadValuesError("Must know name, who it's from, and who it's for.");
+  }
   return to.toString() + "_" + name + "_" + from.toString();
 }

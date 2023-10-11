@@ -15,12 +15,11 @@ export default class StatusConcept {
     if (!user) {
       throw new BadValuesError("user cannot be empty");
     }
-    const exists = await this.getByAuthor(user);
-    if (exists) {
-      throw new NotAllowedError("User already has a status");
-    }
-    const _id = await this.status.createOne({ user, emoji: "none" });
-    return { msg: "Status field successfully created!", status: await this.status.readOne({ _id }) };
+    const exists = await this.getByAuthor(user).catch(async () => {
+      const _id = await this.status.createOne({ user, emoji: "none" });
+      return { msg: "Status field successfully created!", status: await this.status.readOne({ _id }) };
+    });
+    return exists;
   }
 
   async getStatus(query: Filter<StatusDoc>) {
@@ -31,25 +30,25 @@ export default class StatusConcept {
   }
 
   async getByAuthor(user: ObjectId) {
-    const statuses = await this.status.readMany({ user });
+    const statuses = await this.status.readMany({ user: user });
     if (statuses.length === 0) {
       throw new BadValuesError(`${user} doesn't have a status!`);
     }
     return statuses[0];
   }
 
-  async update(_id: ObjectId, emoji: string) {
+  async update(user: ObjectId, emoji: string) {
     const update = { emoji };
     this.sanitizeUpdate(update);
-    await this.getByAuthor(_id);
+    await this.getByAuthor(user);
 
-    await this.status.updateOne({ user: _id }, update);
+    await this.status.updateOne({ user }, update);
     return { msg: "Status successfully updated!" };
   }
 
-  async delete(_id: ObjectId) {
-    await this.getByAuthor(_id);
-    await this.update(_id, "none");
+  async delete(user: ObjectId) {
+    await this.getByAuthor(user);
+    await this.update(user, "none");
     return { msg: "Status deleted successfully!" };
   }
 
