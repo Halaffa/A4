@@ -1,7 +1,7 @@
 import { Filter, ObjectId } from "mongodb";
 
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { NotAllowedError } from "./errors";
+import { BadValuesError, NotAllowedError } from "./errors";
 
 export interface PermissionDoc extends BaseDoc {
   user: ObjectId;
@@ -12,6 +12,9 @@ export default class PermissionConcept {
   public readonly perms = new DocCollection<PermissionDoc>("perms");
 
   async grantPermission(user: ObjectId, resource: ObjectId) {
+    if (!user || !resource) {
+      throw new BadValuesError("user and resource cannot be empty");
+    }
     if (await this.getSpecific(user, resource)) {
       throw new PermissionAlreadyGrantedError(user, resource);
     }

@@ -3,10 +3,8 @@ import { ObjectId } from "mongodb";
 import { Router, getExpressRouter } from "./framework/router";
 
 import { Expiry, Friend, Label, Permission, Post, Status, User, WebSession } from "./app";
-import { ExpiryDoc } from "./concepts/expiry";
-import { LabelDoc } from "./concepts/label";
+import { markLabel, tierLabel } from "./concepts/label";
 import { PostDoc, PostOptions } from "./concepts/post";
-import { StatusDoc } from "./concepts/status";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
@@ -25,14 +23,9 @@ class Routes {
     return await Label.getLabels({});
   }
 
-  @Router.get("/expire")
-  async getExpireTimeAny() {
-    return await Expiry.getTimeLeft({});
-  }
-
-  @Router.get("/expire")
+  @Router.get("/expire/:id")
   async getExpireTime(_id: ObjectId) {
-    return await Expiry.getTimeLeft({ _id });
+    return await Expiry.getTimeLeft(_id);
   }
 
   @Router.get("/status")
@@ -66,11 +59,11 @@ class Routes {
     return await Label.create(name, target);
   }
 
-  @Router.put("/labels")
-  async changeLabel(_id: ObjectId, update: Partial<LabelDoc>) {
+  @Router.patch("/labels")
+  async changeLabel(_id: ObjectId, update: string) {
     return await Label.update(_id, update);
   }
-
+  // Change and delete label
   @Router.delete("/labels")
   async deleteLabel(_id: ObjectId) {
     return await Label.delete(_id);
@@ -82,16 +75,17 @@ class Routes {
     return await User.update(user, update);
   }
 
-  @Router.put("/expire/time")
-  async changeTime(_id: ObjectId, update: Partial<ExpiryDoc>) {
-    return await Expiry.refresh(_id, update);
+  @Router.patch("/expire")
+  async changeTime(_id: ObjectId, time: number) {
+    return await Expiry.refresh(_id, time);
   }
 
   @Router.post("/expire")
   async makeExpire(resource: ObjectId, time: number) {
     return await Expiry.create(resource, time);
   }
-
+  // Getting expire time seems weird, getting expire is wrong form,
+  // and refreshing expire gives error
   @Router.get("/expire/resource")
   async didExpire(_id: ObjectId) {
     return await Expiry.expire(_id);
@@ -117,6 +111,7 @@ class Routes {
     return await Permission.getSpecific(user, resource);
   }
 
+  // This is only not working permissions
   @Router.delete("/permission")
   async deletePerm(_id: ObjectId) {
     return await Permission.removePermission(_id);
@@ -138,11 +133,12 @@ class Routes {
     return await Status.getByAuthor(user);
   }
 
-  @Router.put("/user/status")
-  async changeStatus(session: WebSessionDoc, update: Partial<StatusDoc>) {
+  @Router.patch("/user/status")
+  async changeStatus(session: WebSessionDoc, symbol: string) {
     const user = WebSession.getUser(session);
-    return await Status.update(user, update);
+    return await Status.update(user, symbol);
   }
+  // Changing and getting user status
 
   @Router.delete("/user/status")
   async deleteStatus(session: WebSessionDoc) {
@@ -236,43 +232,60 @@ class Routes {
     return await Friend.rejectRequest(fromId, user);
   }
 
-  // TODO: Functionality for sync routes
-  // TODO: Additional label functions or store usernames in labels?
-
   @Router.post("/mark")
   async mark(session: WebSessionDoc, to: ObjectId, name: string) {
     const from = WebSession.getUser(session);
-    // const labelName = await Label.generateLabel(name, from); ?
-    const label = await Label.create(name, to);
+    const labelName = markLabel(name, from, to);
+    // Front-end task:
     // If from labeled to with label name already:
-    //    Change some state to signify mutual marking
-    return label;
+    //    Change some front end state to signify mutual marking
+    return Label.create(labelName, to);
   }
 
   @Router.delete("/mark")
   async unmark(session: WebSessionDoc, to: ObjectId, name: string) {
     const from = WebSession.getUser(session);
-    // const labelName = await Label.generateLabel(name, from); ?
-    const label = await Label.getLabels({ name });
+    const labelName = markLabel(name, from, to);
+    const labels = await Label.getLabels({ name: labelName });
+    const label = labels[0];
+    //Front-end task:
     // If from labeled to with label name already:
     //    Change some state to signify no more mutual marking
-    // return Label.delete(label._id); Need a "delete by name" for label
-    return;
+    return Label.delete(label._id);
+  }
+
+  // This was not a functionality I realized I needed originally,
+  // keep this one in mind for the writeup.
+  // Anddddd.... it's bugged
+  @Router.get("/tier")
+  async getTiers(session: WebSessionDoc) {
+    const from = WebSession.getUser(session);
+    const labels = await Label.getLabels({ target: from });
+    const tierLabels = labels.filter((input) => {
+      const userID = from.toString();
+      return input.name.endsWith(userID);
+    });
+    return tierLabels;
   }
 
   @Router.post("/tier")
   async tier(session: WebSessionDoc, otherUser: ObjectId, tier: number) {
-    const user = WebSession.getUser(session);
-    // const labelName = await Label.tierLabel(name, tier); ?
-    const label = await Label.create("user_and_tier", otherUser);
+    const from = WebSession.getUser(session);
+    const labelName = tierLabel(tier, from, otherUser);
+    const label = await Label.create(labelName, otherUser);
+    await Label.create(labelName, from);
     return label;
   }
 
   @Router.delete("/tier")
   async untier(session: WebSessionDoc, otherUser: ObjectId, tier: number) {
-    const user = WebSession.getUser(session);
-    // const labelName = await Label.tierLabel(name, tier); ?
-    // return Label.delete(labelName); Need a "delete by name" for label
+    const from = WebSession.getUser(session);
+    const labelName = tierLabel(tier, from, otherUser);
+    const labels = await Label.getLabels({ name: labelName });
+    const label = labels[0];
+    const otherLabel = labels[1];
+    await Label.delete(otherLabel._id);
+    return Label.delete(label._id);
   }
 
   @Router.post("/login")
@@ -285,13 +298,20 @@ class Routes {
 
   @Router.post("/posts")
   async createPost(session: WebSessionDoc, content: string, options?: PostOptions, tier?: number) {
-    if (!tier) {
-      const user = WebSession.getUser(session);
-      const created = await Post.create(user, content, options);
-      return { msg: created.msg, post: await Responses.post(created.post) };
+    const user = WebSession.getUser(session);
+    const created = await Post.create(user, content, options);
+    let labelName = "0";
+    if (tier) {
+      labelName = tier.toString();
     }
-    // So here we need to consider who has access based on what tier this post is labeled as.
-    // Only users with tiers equal to or higher than the given tier by author are granted permission
+    // Have to do this to let typescript compile
+    if (created) {
+      const post = created.post;
+      if (post) {
+        await Label.create(labelName, post._id);
+      }
+    }
+    return { msg: created.msg, post: await Responses.post(created.post) };
   }
 }
 

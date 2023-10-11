@@ -1,7 +1,7 @@
 import { Filter, ObjectId } from "mongodb";
 
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { NotAllowedError } from "./errors";
+import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface LabelDoc extends BaseDoc {
   name: string;
@@ -9,41 +9,41 @@ export interface LabelDoc extends BaseDoc {
 }
 
 export default class LabelConcept {
-  public readonly postLabels = new DocCollection<LabelDoc>("post_labels");
+  public readonly Labels = new DocCollection<LabelDoc>("labels");
 
   async create(name: string, target: ObjectId) {
-    const _id = await this.postLabels.createOne({ name, target });
-    return { msg: "Label successfully created!", label: await this.postLabels.readOne({ _id }) };
+    if (!name || !target) {
+      throw new BadValuesError("name and target cannot be empty");
+    }
+    const _id = await this.Labels.createOne({ name, target });
+    return { msg: "Label successfully created!", label: await this.Labels.readOne({ _id }) };
   }
 
   async getLabels(query: Filter<LabelDoc>) {
-    const postLabels = await this.postLabels.readMany(query, {
+    const Labels = await this.Labels.readMany(query, {
       sort: { dateUpdated: -1 },
     });
-    return postLabels;
+    if (Labels.length < 1) {
+      throw new NotFoundError("Label asked for does not exist.");
+    }
+    return Labels;
   }
 
-  async update(_id: ObjectId, update: Partial<LabelDoc>) {
+  async update(_id: ObjectId, name: string) {
+    const update = { name };
     this.sanitizeUpdate(update);
-    await this.postLabels.updateOne({ _id }, update);
+    await this.Labels.updateOne({ _id }, update);
     return { msg: "Label successfully updated!" };
   }
 
   async delete(_id: ObjectId) {
-    await this.postLabels.deleteOne({ _id });
+    await this.Labels.deleteOne({ _id });
     return { msg: "Labels deleted successfully!" };
   }
 
-  // Hmmm... How do we do this?
-  // Should we actually keep track of the author of labels?
-  async isAuthor(user: ObjectId, _id: ObjectId) {
-    // const post = await this.posts.readOne({ _id });
-    // if (!post) {
-    //   throw new NotFoundError(`Post ${_id} does not exist!`);
-    // }
-    // if (post.author.toString() !== user.toString()) {
-    //   throw new PostAuthorNotMatchError(user, _id);
-    // }
+  async deleteByName(name: string) {
+    await this.Labels.deleteOne({ name });
+    return { msg: "Labels deleted successfully!" };
   }
 
   private sanitizeUpdate(update: Partial<LabelDoc>) {
@@ -55,4 +55,12 @@ export default class LabelConcept {
       }
     }
   }
+}
+
+export function tierLabel(tier: number, from: ObjectId, to: ObjectId) {
+  return to.toString() + "_" + tier.toString() + "_" + from.toString();
+}
+
+export function markLabel(name: string, from: ObjectId, to: ObjectId) {
+  return to.toString() + "_" + name + "_" + from.toString();
 }

@@ -1,7 +1,7 @@
 import { Filter, ObjectId } from "mongodb";
 
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { NotAllowedError, NotFoundError } from "./errors";
+import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface StatusDoc extends BaseDoc {
   user: ObjectId;
@@ -12,6 +12,9 @@ export default class StatusConcept {
   public readonly status = new DocCollection<StatusDoc>("status");
 
   async create(user: ObjectId) {
+    if (!user) {
+      throw new BadValuesError("user cannot be empty");
+    }
     const _id = await this.status.createOne({ user, emoji: "none" });
     return { msg: "Status field successfully created!", status: await this.status.readOne({ _id }) };
   }
@@ -27,14 +30,15 @@ export default class StatusConcept {
     return await this.getStatus({ user });
   }
 
-  async update(_id: ObjectId, update: Partial<StatusDoc>) {
+  async update(_id: ObjectId, emoji: string) {
+    const update = { emoji };
     this.sanitizeUpdate(update);
     await this.status.updateOne({ _id }, update);
     return { msg: "Status successfully updated!" };
   }
 
   async delete(_id: ObjectId) {
-    await this.update(_id, { emoji: "none" });
+    await this.update(_id, "none");
     return { msg: "Status deleted successfully!" };
   }
 
